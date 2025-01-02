@@ -1,4 +1,4 @@
-﻿// Copyright © 2024 ema
+﻿// Copyright © 2025 ema
 //
 // This file is part of QuickLook program.
 //
@@ -15,10 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+using PureSharpCompress.Archives.Zip;
+using PureSharpCompress.Common;
+using PureSharpCompress.Readers;
 using QuickLook.Common.Plugin;
-using SharpCompress.Archives.Zip;
-using SharpCompress.Common;
-using SharpCompress.Readers;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -30,7 +30,6 @@ namespace QuickLook.Plugin.XMindThumbnailViewer;
 public class Plugin : IViewer
 {
     private ImagePanel? _ip;
-    private string? _path;
 
     public int Priority => 0;
 
@@ -60,7 +59,6 @@ public class Plugin : IViewer
 
     public void View(string path, ContextObject context)
     {
-        _path = path;
         _ip = new ImagePanel
         {
             ContextObject = context,
@@ -71,7 +69,13 @@ public class Plugin : IViewer
             using Stream imageData = ViewImage(path);
             BitmapImage bitmap = imageData.ReadAsBitmapImage();
 
-            _ip.Dispatcher.Invoke(() => _ip.Source = bitmap);
+            if (_ip is null) return;
+
+            _ip.Dispatcher.Invoke(() =>
+            {
+                _ip.Source = bitmap;
+                _ip.DoZoomToFit();
+            });
             context.IsBusy = false;
             context.Title = $"{bitmap.PixelWidth}x{bitmap.PixelHeight}: {Path.GetFileName(path)}";
         });
@@ -94,7 +98,7 @@ public class Plugin : IViewer
 
         while (reader.MoveToNextEntry())
         {
-            if (reader.Entry.Key.Equals("Thumbnails/thumbnail.png", StringComparison.OrdinalIgnoreCase))
+            if (reader.Entry.Key!.Equals("Thumbnails/thumbnail.png", StringComparison.OrdinalIgnoreCase))
             {
                 MemoryStream ms = new();
                 using EntryStream stream = reader.OpenEntryStream();
